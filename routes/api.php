@@ -6,23 +6,24 @@ use App\Http\Controllers\GameController;
 use App\Http\Controllers\GameVersionController;
 use App\Http\Controllers\ScoreController;
 use App\Http\Controllers\UserController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
-        Route::post('signUp', [AuthController::class, 'signUp']);
-        Route::post('signIn', [AuthController::class, 'signIn']);
-        Route::post('signOut', [AuthController::class, 'signOut'])->middleware('auth:sanctum');
+        Route::post('signup', [AuthController::class, 'signUp']);
+        Route::post('signin', [AuthController::class, 'signIn']);
+        Route::post('signout', [AuthController::class, 'signOut'])->middleware('auth:sanctum');
     });
 
-    Route::middleware('auth::sanctum')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
         // administrator
         Route::get('admins', [AdministratorController::class, 'index']);
 
         // user
-        Route::apiResource('users', UserController::class)
-            ->except(['create', 'edit']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::get('users', [UserController::class, 'index']);
+        Route::put('users', [UserController::class, 'update']);
+        Route::delete('users', [UserController::class, 'destroy']);
         Route::get('/users/{username}', [UserController::class, 'show']);
 
         // games
@@ -34,6 +35,7 @@ Route::prefix('v1')->group(function () {
 
         // game versions
         Route::post('/games/{slug}/upload', [GameVersionController::class, 'store']);
+        Route::get('/games/{slug}/{version}', [GameVersionController::class, 'show']);
 
         // scores
         Route::get('/games/{slug}/scores', [ScoreController::class, 'index']);

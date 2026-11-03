@@ -12,7 +12,7 @@ class GameVersionController extends Controller
     }
 
     // game serve
-    public function show(Request $request)
+    public function show(Request $request, string $slug, string $version)
     {
         //
     }
