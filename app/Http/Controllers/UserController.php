@@ -70,11 +70,36 @@ class UserController extends Controller
                 'message' => 'User Not found'
             ], 404);
         }
-        $games = $user->games()->whereHas('versions')->get(['id', 'slug', 'title', 'description']);
+        $isCurrentUser = $request->user() && $request->user()->username === $user->username;
+
+        $gamesQuery = $user->games();
+        if (!$isCurrentUser) {
+            $gamesQuery->whereHas('versions');
+        }
+        $authoredGames = $gamesQuery->get(['slug', 'title', 'description']);
+
+        $highscores = $user->scores()
+            ->with('game:id,slug,title,description')
+            ->select('game_id', \DB::raw('MAX(score) as score'), \DB::raw('MAX(created_at) as timestamp'))
+            ->groupBy('game_id')
+            ->get()
+            ->map(function ($score) {
+                return [
+                    'game' => [
+                        'slug' => $score->game->slug,
+                        'title' => $score->game->title,
+                        'description' => $score->game->description,
+                    ],
+                    'score' => (int) $score->score,
+                    'timestamp' => $score->timestamp ? $score->timestamp->toISOString() : null
+                ];
+            });
         return response()->json([
             'username' => $user->username,
-            'authoredGames' => $games
-        ]);
+            'registeredTimestamp' => $user->created_at->toISOString(),
+            'authoredGames' => $authoredGames,
+            'highscores' => $highscores
+        ], 200);
     }
     public function update(Request $request, $id)
     {
