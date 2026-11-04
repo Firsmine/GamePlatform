@@ -22,7 +22,7 @@ Route::prefix('v1')->group(function () {
         // user
         Route::post('users', [UserController::class, 'store']);
         Route::get('users', [UserController::class, 'index']);
-        Route::put('users', [UserController::class, 'update']);
+        Route::put('users/{id}', [UserController::class, 'update']);
         Route::delete('users', [UserController::class, 'destroy']);
         Route::get('/users/{username}', [UserController::class, 'show']);
 

@@ -11,6 +11,12 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        if (!$this->isAdministrator($request)) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not the administrator',
+            ], 403);
+        }
         $users = User::query()->get(['username', 'last_login_at', 'created_at', 'updated_at']);
 
         $content = $users->map(function ($user) {
@@ -26,10 +32,16 @@ class UserController extends Controller
         return response()->json([
             'totalElements' => $users->count(),
             'content' => $content,
-        ]);
+        ], 200);
     }
     public function store(Request $request)
     {
+        if (!$this->isAdministrator($request)) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not the administrator',
+            ], 403);
+        }
         $data = Validator::make($request->all(), [
             'username' => 'required|string|min:4|max:60|unique:users,username',
             'password' => 'required|string|min:6|max:20'
@@ -39,14 +51,9 @@ class UserController extends Controller
             return response()->json([
                 'status' => 'invalid',
                 'message' => $data->errors()->toArray()
-            ], 422);
+            ], 400);
         }
-        if (!$this->isAdministrator($request)) {
-            return response()->json([
-                'status' => 'forbidden',
-                'message' => 'You are not the administrator',
-            ], 403);
-        }
+
         $user = User::create($data->validated());
 
         return response()->json([
@@ -56,15 +63,75 @@ class UserController extends Controller
     }
     public function show(Request $request, string $username)
     {
-        //
+        $user = User::where('username', $username)->firstOrFail();
+        if (!$user) {
+            return response()->json([
+                'status' => 'not-found',
+                'message' => 'User Not found'
+            ], 404);
+        }
+        $games = $user->games()->whereHas('versions')->get(['id', 'slug', 'title', 'description']);
+        return response()->json([
+            'username' => $user->username,
+            'authoredGames' => $games
+        ]);
     }
-    public function update(Request $request)
+    public function update(Request $request, $id)
     {
-        //
+        if (!$this->isAdministrator($request)) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not the administrator'
+            ], 403);
+        }
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'status' => 'not-found',
+                'message' => 'User Not found'
+            ], 404);
+        }
+
+        $data = Validator::make($request->all(), [
+            'username' => 'required|string|min:4|max:60|unique:users,username,' . $id,
+            'password' => 'required|string|min:5|max:20',
+        ]);
+        if ($data->fails()) {
+            return response()->json([
+                'status' => 'invalid',
+                'message' => $data->errors()->toArray()
+            ], 400);
+        }
+
+        if (User::where('username', $request->username)->where('id', '!=', $id)->exists()) {
+            return response()->json([
+                'status' => 'invalid',
+                'message' => 'Username already exists'
+            ], 400);
+        }
+        $user->update($data->validated());
+        return response()->json([
+            'status' => 'success',
+            'username' => $user->username,
+        ], 201);
     }
-    public function destroy(Request $request)
+    public function destroy(Request $request, $id)
     {
-        //
+        if (!$this->isAdministrator($request)) {
+            return response()->json([
+                'status' => 'forbidden',
+                'message' => 'You are not the administrator',
+            ], 403);
+        }
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'status' => 'not-found',
+                'message' => 'User Not found',
+            ], 404);
+        }
+        $user->delete();
+        return response()->noContent();
     }
 
     private function isAdministrator(Request $request): bool
